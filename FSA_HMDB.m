@@ -31,12 +31,14 @@ varTypes = {'double','string','string','string','double','string','double','doub
         'double','double','double','double','double','double','double','double','double','double',...
         'double','string'};
 % load test spectra
-%load PubChemMetabolite_mass_correction.mat;
-%output_filename='FSA_HMDB_result_CHONSP_0002.xlsx'; % file name for the identification result
-load PubChemMetabolite_add_halogen.mat
-HMDBTable=readtable('HMDB_CHONPS_Halogen_MSMS.xlsx','FileType','spreadsheet',...
-    'TextType','string','VariableNamingRule','modify');
-output_filename='FSA_HMDB_result_CHONSP_Halogen.xlsx'; % file name for the identification result
+load PubChemMetabolite.mat;
+output_filename='FSA_HMDB_result_CHONSP.xlsx'; % file name for the identification result
+HMDBTable=readtable('HMDB_CHONPS_MSMS.xlsx','FileType','spreadsheet',...
+   'TextType','string','VariableNamingRule','modify');
+%load PubChemMetabolite_add_halogen.mat
+%HMDBTable=readtable('HMDB_CHONPS_Halogen_MSMS.xlsx','FileType','spreadsheet',...
+%    'TextType','string','VariableNamingRule','modify');
+%output_filename='FSA_HMDB_result_CHONSP_Halogen.xlsx'; % file name for the identification result
 % remove Pubmed data whose molecular weight is larger than the max molecular weight in the spectra
 if ~isnumeric(HMDBTable.monisotopic_molecular_weight)
     maxmass=max(str2double(HMDBTable.monisotopic_molecular_weight)); % max molecular weight in the spectra
