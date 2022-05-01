@@ -10,7 +10,7 @@ output_filename='FSA_result_CASMI2016_Cat2and3_Challenge_CHONSP.xlsx'; % file na
 %load PubChemMetabolite_add_halogen.mat
 %solution_name='CASMI2016_Cat2and3_Train_Valid_all.xlsx';
 %output_filename='FSA_result_CASMI2016_Cat2and3_Challenge_CHONSP_Halogen.xlsx'; % file name for the identification result
-peakdata_dirname='test_datasets\CASMI2016_Cat2and3_All';
+peakdata_dirname='CASMI2016_Cat2and3_All';
 
 hdl = findobj('tag','waitfig');
 if ~isempty(hdl) %delete the old progress bar if exist
