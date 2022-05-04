@@ -157,23 +157,21 @@ massid=zeros(nop,noc);
 tic; % resume the timer
 mincnum=zeros(noc,1);
 % is_CF_exist=false;
-MAXC=1;
 % while ~is_CF_exist
     for j=1:noc % for each precursor formula candidate
         vecp=elemnum(idrec{1}(j),:); % element composition in the precursor formula
         cnum=ones(nop,1);
         uidrec=cell(nop,1);
         for k=2:nop % make sure that all the fragment components are a subset of those of the precursor
-            idx=idrec{k};
+            idx=idrec{k}; % indices of formulas for the kth fragment
             matf=elemnum(idx,:); % fragment matrix
             matp=repmat(vecp,length(idx),1); % parent matrix
-            tf=matp >= matf;
+            tf=matp >= matf; % logical matrix indicating whether a subset is found
             uid=all(tf,2); % logical value showing which formulas that possess MDR with precursor
             cnum(k)=sum(uid); % record number of satisfied candidates
             uidrec{k}=(idx(uid))'; % record the indices of the satisfied candidates
-            mid=find(uid);
-            if length(mid)==1
-                massid(k,j)=mid;
+            if (cnum(k)==1) 
+                massid(k,j)=find(uid);
             end
         end
         if ~isempty(cnum(cnum>0))
@@ -186,8 +184,8 @@ MAXC=1;
         uidrec=uidrec(2:end); % remove the first record (unused)
         cnum=cnum(2:end); % remove the first record (unused)
         massuid=massid(2:end,j);
-        uidrec=cell2mat(uidrec(cnum==MAXC)); % keep only characteristic fragments
-        massuid=massuid(cnum==MAXC);
+        uidrec=cell2mat(uidrec(cnum==1)); % keep only characteristic fragments
+        massuid=massuid(cnum==1);
         nor_cur=length(uidrec); % number of characteristic fragments
         % compute the match score of each combination
         [k,l]=ind2sub([nor_cur,nor_cur],nonzeros(triu(reshape(1:(nor_cur*nor_cur), [nor_cur,nor_cur]),1)));
@@ -196,7 +194,7 @@ MAXC=1;
         nor(j)=nor_cur;
         % compute the mass differences of this combination
         tempmtx=difmtx(2:end); % keep the mass differences of the fragments
-        tempmtx=tempmtx(cnum==MAXC); % keep the mass differences of the characteristic fragments
+        tempmtx=tempmtx(cnum==1); % keep the mass differences of the characteristic fragments
         difvec=cellfun(@(x,y)x(y),tempmtx,num2cell(massuid)); % extract the mass differences of the characteristic fragments
         difsum(j)=sum(difvec)+difmtx{1}(j); % add the mass difference of the precursor
     end
