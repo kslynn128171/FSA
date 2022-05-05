@@ -1,9 +1,9 @@
-% -------------------------------------------------
-% Single MS/MS spectrum Identification using FSA
-% -------------------------------------------------
+% -----------------------------------------------------------------
+% Precursor formula ranking using FSA for a single MS/MS peak list
+% -----------------------------------------------------------------
 % Author: Ke-Shiuan Lynn Ph.D.
 % Email: 128171@mail.fju.edu.tw
-% Final Update: Nov. 12, 2021
+% Final Update: Apr. 20, 2022
 %--------------------------------------------------------------------------
 % clear memory
 clearvars
@@ -15,16 +15,13 @@ precursor_mz=245.2341;
 mz=[245.2341, 171.1502, 129.1395, 112.1128, 100.0760, 84.0812];
 ab=[56.8106, 58.1811, 65.6561, 90.0748, 100.0000, 51.4535];
 mode='positive';
-Match_Tol=0.0012; %recommanded values: QTOF: 0.0012, ITFT: 0.0011, QFT: 0.0008
+Match_Tol=0.001; 
 MaxQualifiedResult=5;
 %---------------------------------------------------------------------------
 % load PubChem database
 load PubChemMetabolite
 % initialize parameters
-TINY=0.0;
-note='successful ranked';
-Top2_Score_Diff=-1;
-comp_time=-1;
+TINY=0.0; % threshold to remove peaks with small abundance
 % ------------------------------------------------------------------------
 % Preprocessing the m/z values
 nop_org=length(mz); % number of peaks in the spectrum
