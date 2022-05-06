@@ -18,7 +18,7 @@ fclose all;
 % Parameter settings
 opt.TINY=0; % ratio threshold for "tiny" peaks
 opt.PPM=0.001;% mass match tolerance
-opt.MaxRankNumber=5;
+opt.MaxRankNumber=1;
 output_filename='Precursor_Formula_Ranking_Result_CHONSP.xlsx'; % file name of the formula ranking result
 MS2Table=readtable('MSMS_peaklist_example.xlsx','FileType','spreadsheet',...
    'TextType','string','VariableNamingRule','modify'); % file name of the spectral peak list
@@ -61,10 +61,6 @@ for i=1:spectnum % for each spectrum
         spect((rec_count+1):(rec_count+reclen),:)=msg;
         rec_count=rec_count+reclen;
     end
-%     for j=1:reclen
-%         rec_count=rec_count+1;
-%         spect(rec_count,:)=msg(j,:);
-%     end
     ratio=1.0*i/spectnum;
     waitbar(ratio, h, ['In the given dataset: ',num2str(ratio*100,'%6.2f'),'% (',num2str(i),'/',num2str(spectnum),') finished']);
 end

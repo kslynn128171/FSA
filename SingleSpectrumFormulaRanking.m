@@ -22,22 +22,16 @@ function msg=SingleSpectrumFormulaRanking(spectidx, elemnum, formula, mass, spec
 %--------------------------------------------------------------------------
 msg=cell(opt.MaxRankNumber,17);
 msg_count=0;
-if opt.PPM < 1
-    delta=opt.PPM;
-else
-    delta=opt.PPM*mz(j)/1e6;
-end
 % Preprocessing the m/z values
 temp = strsplit(spectrum.ms2_peak,';');
 tempnum = length(temp);
-num=str2double(spectrum.peak_counter);
-if abs((tempnum/2)-num)<1e-3
-    terms = reshape(temp,2,num);
-else
-    disp('The format of the ms2_peaks is incorrect.');
+if rem(tempnum,2) ~= 0
+    disp(['The format of the ms2_peaks is incorrect in spectrum #',num2str(spectidx),'. The m/z and abundance values should appear in pairs, but ',num2str(tempnum),' values are found.']);
     msg=[];
     return;
 end
+num=tempnum/2;
+terms = reshape(temp,2,num);
 mz=str2double(terms(1,:)); % m/z value
 ab=str2double(terms(2,:)); % abundance
 clear terms
@@ -81,6 +75,11 @@ else
     else % no fragment in the spectrum
         massdiff=abs(mass-precursor);
         [sorteddiff,sidx]=sort(massdiff);
+        if opt.PPM < 1
+            delta=opt.PPM;
+        else
+            delta=opt.PPM*precursor/1e6;
+        end
         is_qualified=sorteddiff<=delta;
         if any(is_qualified)
             msg_count=msg_count+1;
@@ -116,7 +115,11 @@ idrec=cell(nop,1);
 difmtx=cell(nop,1);
 for j=1:nop
     % adjust match tolerance according to the specified unit
-    
+    if opt.PPM < 1
+        delta=opt.PPM;
+    else
+        delta=opt.PPM*mz(j)/1e6;
+    end
     upbd=mz(j)+delta;
     lobd=mz(j)-delta;
     tf=(mass <= upbd) & (mass >= lobd);
@@ -161,7 +164,7 @@ if nof == 1
     comp_time=toc;
     for i=1:min(length(idx),opt.MaxRankNumber)
         msg_count=msg_count+1;
-        msg(msg_count,:)={spectidx,mode,precursor,formula{sidx(i)},mass(sidx(i)),sorteddiff(i),...
+        msg(msg_count,:)={spectidx,mode,precursor,formula{idx(sidx(i))},mass(idx(sidx(i))),sorteddiff(i),...
             i,length(idx),nop_org,nop,nof,-1,-1,-1,Peak_Dist_SD,comp_time,note};
     end
     msg=msg(1:msg_count,:);
