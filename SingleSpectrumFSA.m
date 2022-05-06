@@ -189,7 +189,8 @@ else
     idx=idrec{1};
     [ss,sidx]=sort(score,'descend'); % sort the score in a descending order
     Top2_Score_Diff=ss(1)-ss(2); % the difference of the top2 scores
-    [uscore,uid]=sort(unique(score),'desc'); % score sorting
+    [uscore,~,uid]=unique(-score); % find unique scores
+    uscore=-uscore; % scores descendent sorting
     bestscore=max(score); % the best score among all formula cansidates
     %ranknum=find(uscore==score(1)); % score rank (same scores are ignored)
     ranking=sum(score>=score(1)); % score rank (same scores are accounted for)
@@ -210,7 +211,7 @@ else
             end
         else
             [sdif,didx]=sort(difsum(uid==i)); % sort the mass difference
-            tieidx=find(uid==idrec);
+            tieidx=find(uid==i);
             tempformula=formula(idx(sidx(tieidx)));
             tempmass=mass(idx(sidx(tieidx)));
             for k=1:length(didx)
