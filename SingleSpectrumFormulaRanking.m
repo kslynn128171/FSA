@@ -82,15 +82,22 @@ else
         end
         is_qualified=sorteddiff<=delta;
         if any(is_qualified)
-            msg_count=msg_count+1;
-            note='No fragment is found. Conventional mass matching is performed.';
             comp_time=toc;
-            for i=1:min(sum(is_qualified),opt.MaxRankNumber)
-                msg(msg_count,:)={spectidx,mode,precursor,formula{sidx(i)},mass(sidx(i)),sorteddiff(i),...
-                    i,sum(is_qualified),nop_org,0,0,-1,-1,-1,Peak_Dist_SD,comp_time,note};
+            if sum(is_qualified) == 1
+                msg_count=msg_count+1;
+                note='Single candidate matches with the answer.';
+                msg(msg_count,:)={spectidx,mode,precursor,formula{sidx(1)},mass(sidx(1)),sorteddiff(1),...
+                    1,1,nop_org,0,0,-1,-1,-1,Peak_Dist_SD,comp_time,note};
+            else
+                note='No fragment is found. Conventional mass matching is performed.';
+                for i=1:min(sum(is_qualified),opt.MaxRankNumber)
+                    msg_count=msg_count+1;
+                    msg(msg_count,:)={spectidx,mode,precursor,formula{sidx(i)},mass(sidx(i)),sorteddiff(i),...
+                        i,sum(is_qualified),nop_org,0,0,-1,-1,-1,Peak_Dist_SD,comp_time,note};
+                end
             end
         else
-            note='No formula is found for the precursor.';
+            note='No formula can be found under the given tolerance.';
             msg_count=msg_count+1;
             msg(msg_count,:)={spectidx,mode,precursor,'none',-1,-1,...
                 -1,0,nop_org,0,0,-1,-1,-1,Peak_Dist_SD,toc,note};
@@ -128,7 +135,7 @@ for j=1:nop
         uid=all(elemnum(idx,1:2),2); % must contain both C and H in precursor
         idx=idx(uid);
         if isempty(idx) % No formula is found for the precursor 
-            note='No formula is found for the precursor.';
+            note='No formula can be found containing both C and H.';
             msg_count=msg_count+1;
             msg(msg_count,:)={spectidx,mode,precursor,'none',-1,-1,...
                 -1,0,nop_org,0,0,-1,-1,-1,Peak_Dist_SD,toc,note};

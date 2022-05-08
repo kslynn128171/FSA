@@ -35,10 +35,6 @@ load PubChemMetabolite.mat;
 output_filename='FSA_HMDB_result_CHONSP.xlsx'; % file name for the identification result
 HMDBTable=readtable('HMDB_CHONPS_MSMS.xlsx','FileType','spreadsheet',...
    'TextType','string','VariableNamingRule','modify');
-%load PubChemMetabolite_add_halogen.mat
-%HMDBTable=readtable('HMDB_CHONPS_Halogen_MSMS.xlsx','FileType','spreadsheet',...
-%    'TextType','string','VariableNamingRule','modify');
-%output_filename='FSA_HMDB_result_CHONSP_Halogen.xlsx'; % file name for the identification result
 % remove Pubmed data whose molecular weight is larger than the max molecular weight in the spectra
 if ~isnumeric(HMDBTable.monisotopic_molecular_weight)
     maxmass=max(str2double(HMDBTable.monisotopic_molecular_weight)); % max molecular weight in the spectra
@@ -54,21 +50,17 @@ spectnum=size(HMDBTable,1); % total number of spectra
 % construct a table to record the identification information
 spect = table('Size',[spectnum length(varNames)],'VariableTypes',varTypes,'VariableNames',varNames);
 idlen=size(spect,1);
-%load nertral_loss.mat
 % initialize the progress bar
 h = waitbar(0, 'Waiting...','tag','waitfig');
 % start the identification for each MS/MS spectrum
 starttime=cputime;
 for i=1:idlen % for each spectrum
-    %msg=SingleSpectrumIdent(i,elemnum,formula,mass,spectra(i),opt);
     msg=SingleSpectrumIdent_submit(i,elemnum,formula,mass,spectra(i),opt);
-    %msg=SingleSpectrumFSM_NeutralLoss_new(i, elemnum, formula, mass, spectra(i), nlt, opt);
     spect(i,:)=msg;
     ratio=1.0*i/idlen;
     waitbar(ratio, h, ['In HMDB: ',num2str(ratio*100,'%6.2f'),'% (',num2str(i),'/',num2str(idlen),') finished']);
 end
 totaltime=cputime-starttime
-%%
 % write FSM results
 writetable(spect,output_filename,'Sheet','HMDB_result');
 % prepare summary of FSM results

@@ -64,7 +64,11 @@ mzdiff=abs(mz-precursor);
 % compute the SD of inter-peak distances
 mzorg=[precursor mz(mz<precursor)];
 mzorg=sort(mzorg,'desc');
-Peak_Dist_SD=std(mzorg(1:end-1)-mzorg(2:end));
+if length(mzorg) == 1
+    Peak_Dist_SD=0;
+else
+    Peak_Dist_SD=std(mzorg(1:end-1)-mzorg(2:end));
+end
 lobd=precursor-2;
 cidx=mz >= lobd; % peak indices to be removed (they are not fragments)
 ridx=~cidx; % peak indices to be kept (they are most likely fragments)
@@ -181,9 +185,9 @@ mincnum=zeros(noc,1);
         if (j == 1) &&  (combnum > 1) % record this info if the formula is the correct answer
             is_reduced=true; % the combination of the correct formula contains peak(s) with multiple formulas
         end
-        uidrec=uidrec(2:end); % remove the first record (unused)
-        cnum=cnum(2:end); % remove the first record (unused)
-        massuid=massid(2:end,j);
+        uidrec=uidrec(2:end); % remove the first record (unused) in the formula indices
+        cnum=cnum(2:end); % remove the first record (unused) in the candidate number
+        massuid=massid(2:end,j); % remove the first record (unused) in the mass indices
         uidrec=cell2mat(uidrec(cnum==1)); % keep only characteristic fragments
         massuid=massuid(cnum==1);
         nor_cur=length(uidrec); % number of characteristic fragments
