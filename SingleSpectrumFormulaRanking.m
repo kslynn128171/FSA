@@ -43,14 +43,14 @@ if contains(lower(spectrum.ionization_mode),'os')
     if ~isnumeric(spectrum.precursor_mz)
         precursor=str2double(spectrum.precursor_mz)-1.007276;
     else
-        precursor=pectrum.precursor_mz-1.007276;
+        precursor=spectrum.precursor_mz-1.007276;
     end
 else
     mz=mz+1.007276; % negative mode, perform deprotonation the peak m/z
     if ~isnumeric(spectrum.precursor_mz)
         precursor=str2double(spectrum.precursor_mz)+1.007276;
     else
-        precursor=pectrum.precursor_mz+1.007276;
+        precursor=spectrum.precursor_mz+1.007276;
     end
 end
 tic; % resume the timer
@@ -74,26 +74,28 @@ else
         ab=[max(ab(~remidx)) ab(~remidx)]; % abundance values after irrelevant peak removal
     else % no fragment in the spectrum
         massdiff=abs(mass-precursor);
-        [sorteddiff,sidx]=sort(massdiff);
         if opt.PPM < 1
             delta=opt.PPM;
         else
             delta=opt.PPM*precursor/1e6;
         end
-        is_qualified=sorteddiff<=delta;
-        if any(is_qualified)
+        qidx=find(massdiff<=delta);
+        if ~isempty(qidx)
+            uid=all(elemnum(qidx,1:2),2); % must contain both C and H in precursor
+            idx=qidx(uid);
             comp_time=toc;
-            if sum(is_qualified) == 1
+            if length(idx) == 1
                 msg_count=msg_count+1;
                 note='Single candidate matches with the answer.';
-                msg(msg_count,:)={spectidx,mode,precursor,formula{sidx(1)},mass(sidx(1)),sorteddiff(1),...
+                
+                msg(msg_count,:)={spectidx,mode,precursor,formula{idx},mass(idx),massdiff(idx),...
                     1,1,nop_org,0,0,-1,-1,-1,Peak_Dist_SD,comp_time,note};
             else
                 note='No fragment is found. Conventional mass matching is performed.';
-                for i=1:min(sum(is_qualified),opt.MaxRankNumber)
+                for i=1:min(length(idx),opt.MaxRankNumber)
                     msg_count=msg_count+1;
-                    msg(msg_count,:)={spectidx,mode,precursor,formula{sidx(i)},mass(sidx(i)),sorteddiff(i),...
-                        i,sum(is_qualified),nop_org,0,0,-1,-1,-1,Peak_Dist_SD,comp_time,note};
+                    msg(msg_count,:)={spectidx,mode,precursor,formula{idx(i)},mass(idx(i)),massdiff(idx(i)),...
+                        i,length(idx),nop_org,0,0,-1,-1,-1,Peak_Dist_SD,comp_time,note};
                 end
             end
         else
