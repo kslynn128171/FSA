@@ -22,10 +22,10 @@ function msg=SingleSpectrumFormulaRanking(spectidx, elemnum, formula, mass, spec
 %--------------------------------------------------------------------------
 msg=cell(opt.MaxRankNumber,17);
 msg_count=0;
-% Preprocessing the m/z values
+% Extract m/z and abundance values from the "ms2_peak" column
 temp = strsplit(spectrum.ms2_peak,';');
 tempnum = length(temp);
-if rem(tempnum,2) ~= 0
+if rem(tempnum,2) ~= 0 % check the ms2_peak and see if the m/z and abundance come with pairs
     disp(['The format of the ms2_peaks is incorrect in spectrum #',num2str(spectidx),'. The m/z and abundance values should appear in pairs, but ',num2str(tempnum),' values are found.']);
     msg=[];
     return;
@@ -36,9 +36,9 @@ mz=str2double(terms(1,:)); % m/z value
 ab=str2double(terms(2,:)); % abundance
 clear terms
 nop_org=length(mz); % number of peaks in the spectrum
-% adjust mode for the m/z values
+% convert to monoisotopic mass based on the ion mode
 mode=lower(spectrum.ionization_mode); % the mode of the spectrum
-if contains(lower(spectrum.ionization_mode),'os')
+if contains(mode,'os')
     mz=mz-1.007276; % positive mode, perform protonation the peak m/z
     if ~isnumeric(spectrum.precursor_mz)
         precursor=str2double(spectrum.precursor_mz)-1.007276;
@@ -53,14 +53,20 @@ else
         precursor=pectrum.precursor_mz+1.007276;
     end
 end
+mzdiff=abs(mz-precursor);
+[mindiff,minidx]=min(mzdiff);
 tic; % resume the timer
 % ------------------------------------------
 % find the mass of fragments in a spectrum
 %-------------------------------------------
 % compute the SD of inter-peak distances
-mztmp=[precursor mz(mz<precursor)];
-mztmp=sort(mztmp,'desc');
-Peak_Dist_SD=std(mztmp(1:end-1)-mztmp(2:end));
+mzorg=[precursor mz(mz<precursor)];
+mzorg=sort(mzorg,'desc');
+if length(mzorg) == 1
+    Peak_Dist_SD=0;
+else
+    Peak_Dist_SD=std(mzorg(1:end-1)-mzorg(2:end));
+end
 % remove peaks with higher mass than the precursor
 lobd=precursor-2;
 remidx=mz >= lobd; % peak indices to be removed (they are not fragments)
@@ -81,11 +87,11 @@ else
             delta=opt.PPM*precursor/1e6;
         end
         is_qualified=sorteddiff<=delta;
-        if any(is_qualified)
+        if any(is_qualified) % there exists formula candidates
             comp_time=toc;
-            if sum(is_qualified) == 1
+            if sum(is_qualified) == 1 % Only one formula candidate is found.
                 msg_count=msg_count+1;
-                note='Single candidate matches with the answer.';
+                note='Single candidate exists in the given tolerance.';
                 msg(msg_count,:)={spectidx,mode,precursor,formula{sidx(1)},mass(sidx(1)),sorteddiff(1),...
                     1,1,nop_org,0,0,-1,-1,-1,Peak_Dist_SD,comp_time,note};
             else

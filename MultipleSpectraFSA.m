@@ -14,14 +14,20 @@ fclose all;
 % Fu-Jen Catholic University
 % Email: 128171@mail.fju.edu.tw
 % Final Update: Nov. 12, 2021
-% ---------------------------------------------------------------------
+% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Please fill in the following required information
+% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Parameter settings
-opt.TINY=0; % ratio threshold for "tiny" peaks
+opt.TINY=0.5; % ratio threshold for "tiny" peaks
 opt.PPM=0.001;% mass match tolerance
 opt.MaxRankNumber=1;
-output_filename='Precursor_Formula_Ranking_Result_CHONSP.xlsx'; % file name of the formula ranking result
+% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Please provide your peak list and output filename
+% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 MS2Table=readtable('MSMS_peaklist_example.xlsx','FileType','spreadsheet',...
    'TextType','string','VariableNamingRule','modify'); % file name of the spectral peak list
+output_filename='Precursor_Formula_Ranking_Result_CHONSP.xlsx'; % file name of the formula ranking result
+% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % create a progress bar
 hdl = findobj('tag','waitfig');
 if ~isempty(hdl) %delete the old progress bar if exist
@@ -34,17 +40,19 @@ varNames = {'No','Ionization_Mode','Precursor_Mass','Formula','Formula_Mass','Ma
 varTypes = {'double','string','double','string','double','double','double','double',...
     'double','double','double','double','double','double',...
         'double','double','string'};
-% load test spectra
-load PubChemMetabolite.mat;
+% Find max mass in the peak list
 if ~isnumeric(MS2Table.precursor_mz)
     maxmass=max(str2double(MS2Table.precursor_mz)); % max molecular weight in the spectra
 else
     maxmass=max(MS2Table.precursor_mz); % max molecular weight in the spectra
 end
+% Reduce the database according to the max mass
+load PubChemMetabolite.mat;
 useid=mass <= (maxmass+2.5);
 elemnum=uint8(elemnum(useid,:));
 formula=formula(useid);
 mass=mass(useid);
+% convert the input peak list from a table to a struct
 spectra=table2struct(MS2Table);
 spectnum=size(MS2Table,1); % total number of spectra
 % construct a table to record the identification information
