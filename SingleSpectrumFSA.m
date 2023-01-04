@@ -19,7 +19,7 @@ Match_Tol=0.0012; %recommanded values: QTOF: 0.0012, ITFT: 0.0011, QFT: 0.0008
 MaxQualifiedResult=5;
 %---------------------------------------------------------------------------
 % load PubChem database
-load PubChemDatabase
+load PubChemMetabolite
 % initialize parameters
 TINY=0.0;
 note='successful ranked';
