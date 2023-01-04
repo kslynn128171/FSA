@@ -9,19 +9,20 @@
 clearvars
 clc
 close all
-% -------------------------------------------------------------------------
+% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Please fill in the following required information
+% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 precursor_mz=245.2341;
 mz=[245.2341, 171.1502, 129.1395, 112.1128, 100.0760, 84.0812];
 ab=[56.8106, 58.1811, 65.6561, 90.0748, 100.0000, 51.4535];
 mode='positive';
 Match_Tol=0.0012; %recommanded values: QTOF: 0.0012, ITFT: 0.0011, QFT: 0.0008
 MaxQualifiedResult=5;
-%---------------------------------------------------------------------------
+% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % load PubChem database
 load PubChemMetabolite
 % initialize parameters
-TINY=0.0;
+TINY=0.5;
 note='successful ranked';
 Top2_Score_Diff=-1;
 comp_time=-1;
@@ -88,8 +89,8 @@ nop=length(mz); % number of peaks in the spectrum
 % find possible formula for each m/z values in the spectrum
 idrec=cell(nop,1);
 for j=1:nop
-    %Match_Tol=mz(j)*25/1e6; % if ppm is used for matching tolerance
-    % adjust match tolerance if the molecular mass is small
+    % Match_Tol=mz(j)*25/1e6; % if ppm is used for matching tolerance
+    % adjust match tolerance if the molecular mass is small.
     upbd=mz(j)+Match_Tol;
     lobd=mz(j)-Match_Tol;
     tf=(mass <= upbd) & (mass >= lobd);
@@ -102,12 +103,12 @@ for j=1:nop
             end
         end
         idx=idx(uid);
-        if isempty(idx) % No formula is found for the precursor 
+        if isempty(idx) % No formula is found for the precursor. 
             disp('--------------------- Identification Result (FSA)-----------------------')
             disp('No formula can be found for the precursor.');
             return
         end
-        if length(idx)==1
+        if length(idx)==1 % Only one formula candidate is found.
             massdiff=abs(mass(idx)-precursor);
             disp('--------------------- Identification Result (FSA)-----------------------')
             disp('Single candidate matches with the answer:')
