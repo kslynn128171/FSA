@@ -9,8 +9,8 @@ function msg=SingleSpectrumFormulaRanking(spectidx, elemnum, formula, mass, spec
 % spectrum: the MS/MS spectrum to be identified
 % opt: parameter options
 % The output file columns are: 
-% varNames = {'No','Name','Instrument_Type','Ionization_Mode','Mass','Formula','Rank_Reduced','Original_Rank','Original_Candidates','Peak_Num',...
-%         'Frag_Num','Frag_w_Formula','Score','Is_Reduced','Is_Top1_Uniq','Char_Frag_Percent','Is_CFP_Max','Is_CFP_Max_Uniq','Top2_Sore_Diff',...
+% varNames = {'No','Ionization_Mode','Precursor_Mass','Formula','Formula_Mass','Mass_Difference','Rank','Original_Candidates',...
+%     'Peak_Num','Frag_Num','Frag_w_Formula','Score','Difference_Sum','Top2_Sore_Diff',...
 %         'Peak_Dist_SD','Comp_Time','Note'};
 % 
 % Author: Ke-Shiuan Lynn Ph.D.
@@ -53,8 +53,6 @@ else
         precursor=pectrum.precursor_mz+1.007276;
     end
 end
-mzdiff=abs(mz-precursor);
-[mindiff,minidx]=min(mzdiff);
 tic; % resume the timer
 % ------------------------------------------
 % find the mass of fragments in a spectrum
@@ -74,37 +72,46 @@ remidx=mz >= lobd; % peak indices to be removed (they are not fragments)
 if ~any(remidx) % all peaks are smaller than the lower bound (lobd)
     mz=[precursor mz];
     ab=[max(ab) ab];
-else
+else % There exist peaks whose m/z values are larger than the lower bound (lobd)
     if any(~remidx) % there are fragments in the spectrum
         mz=[precursor mz(~remidx)]; % m/z values after irrelavant peak removal
         ab=[max(ab(~remidx)) ab(~remidx)]; % abundance values after irrelevant peak removal
     else % no fragment in the spectrum
         massdiff=abs(mass-precursor);
         [sorteddiff,sidx]=sort(massdiff);
-        if opt.PPM < 1
-            delta=opt.PPM;
+        if opt.MatchTolerance < 1
+            delta=opt.MatchTolerance;
         else
-            delta=opt.PPM*precursor/1e6;
+            delta=opt.MatchTolerance*precursor/1e6;
         end
         is_qualified=sorteddiff<=delta;
         if any(is_qualified) % there exists formula candidates
             comp_time=toc;
             if sum(is_qualified) == 1 % Only one formula candidate is found.
+                score=max(0,(delta-sorteddiff(1))/delta);
                 msg_count=msg_count+1;
                 note='Single candidate exists in the given tolerance.';
+                % 'No','Ionization_Mode','Precursor_Mass','Formula','Formula_Mass','Mass_Difference',...
+                % 'Rank','Original_Candidates','Peak_Num','Frag_Num','Frag_w_Formula','Score','Difference_Sum','Top2_Sore_Diff','Peak_Dist_SD','Comp_Time','Note';
                 msg(msg_count,:)={spectidx,mode,precursor,formula{sidx(1)},mass(sidx(1)),sorteddiff(1),...
-                    1,1,nop_org,0,0,-1,-1,-1,Peak_Dist_SD,comp_time,note};
-            else
+                    1,1,nop_org,0,0,score,sorteddiff(1),-1,Peak_Dist_SD,comp_time,note};
+            else % there exists multiple formula candidates
                 note='No fragment is found. Conventional mass matching is performed.';
+                Top2_Score_Diff=(sorteddiff(2)-sorteddiff(1))/delta;
                 for i=1:min(sum(is_qualified),opt.MaxRankNumber)
                     msg_count=msg_count+1;
+                    % 'No','Ionization_Mode','Precursor_Mass','Formula','Formula_Mass','Mass_Difference',...
+                    % 'Rank','Original_Candidates','Peak_Num','Frag_Num','Frag_w_Formula','Score','Difference_Sum','Top2_Sore_Diff','Peak_Dist_SD','Comp_Time','Note';
+                    score=max(0,(delta-sorteddiff(i))/delta);
                     msg(msg_count,:)={spectidx,mode,precursor,formula{sidx(i)},mass(sidx(i)),sorteddiff(i),...
-                        i,sum(is_qualified),nop_org,0,0,-1,-1,-1,Peak_Dist_SD,comp_time,note};
+                        i,sum(is_qualified),nop_org,0,0,score,sorteddiff(i),Top2_Score_Diff,Peak_Dist_SD,comp_time,note};
                 end
             end
-        else
+        else % No formula candidate can be found under the given tolerance
             note='No formula can be found under the given tolerance.';
             msg_count=msg_count+1;
+            % 'No','Ionization_Mode','Precursor_Mass','Formula','Formula_Mass','Mass_Difference',...
+            % 'Rank','Original_Candidates','Peak_Num','Frag_Num','Frag_w_Formula','Score','Difference_Sum','Top2_Sore_Diff','Peak_Dist_SD','Comp_Time','Note';
             msg(msg_count,:)={spectidx,mode,precursor,'none',-1,-1,...
                 -1,0,nop_org,0,0,-1,-1,-1,Peak_Dist_SD,toc,note};
         end
@@ -128,10 +135,10 @@ idrec=cell(nop,1);
 difmtx=cell(nop,1);
 for j=1:nop
     % adjust match tolerance according to the specified unit
-    if opt.PPM < 1
-        delta=opt.PPM;
+    if opt.MatchTolerance < 1
+        delta=opt.MatchTolerance;
     else
-        delta=opt.PPM*mz(j)/1e6;
+        delta=opt.MatchTolerance*mz(j)/1e6;
     end
     upbd=mz(j)+delta;
     lobd=mz(j)-delta;
@@ -143,6 +150,8 @@ for j=1:nop
         if isempty(idx) % No formula is found for the precursor 
             note='No formula can be found containing both C and H.';
             msg_count=msg_count+1;
+            % 'No','Ionization_Mode','Precursor_Mass','Formula','Formula_Mass','Mass_Difference',...
+            % 'Rank','Original_Candidates','Peak_Num','Frag_Num','Frag_w_Formula','Score','Difference_Sum','Top2_Sore_Diff','Peak_Dist_SD','Comp_Time','Note';
             msg(msg_count,:)={spectidx,mode,precursor,'none',-1,-1,...
                 -1,0,nop_org,0,0,-1,-1,-1,Peak_Dist_SD,toc,note};
             msg=msg(1:msg_count,:);
@@ -150,16 +159,19 @@ for j=1:nop
         end
         if length(idx)==1
             massdiff=abs(mass(idx)-precursor);
-            note='Single candidate matches with the answer.';
             msg_count=msg_count+1;
+            score=max(0,(delta-massdiff)/delta);
+            note='Single candidate exists in the given tolerance.';
+            % 'No','Ionization_Mode','Precursor_Mass','Formula','Formula_Mass','Mass_Difference',...
+            % 'Rank','Original_Candidates','Peak_Num','Frag_Num','Frag_w_Formula','Score','Difference_Sum','Top2_Sore_Diff','Peak_Dist_SD','Comp_Time','Note';
             msg(msg_count,:)={spectidx,mode,precursor,formula{idx},mass(idx),massdiff,...
-                1,1,nop_org,nop,-1,-1,-1,-1,Peak_Dist_SD,toc,note};
+                1,1,nop_org,nop,-1,score,massdiff,-1,Peak_Dist_SD,toc,note};
             msg=msg(1:msg_count,:);
             return;
         end
     end
     idrec{j}=idx; % record fomula indices for each peak
-    difmtx{j}=abs(mass(idx)-mz(j)); % record the mass differences of the candidates
+    difmtx{j}=abs(mass(idx)-mz(j)); % record the mass differences of the candidates of the j-th peak
 end
 %-----------------------------------------------------------
 % find mother-daughter relations for each precursor formula
@@ -170,15 +182,22 @@ score=zeros(noc,1); % percentage of mother-daughtor relationships can be found (
 precrec=zeros(noc,1); % the precursor formula (for a certain combination)
 nof=sum(~cellfun(@isempty,idrec)); % number of fragment whose formula can be found
 if nof == 1
-    note='No mother-daughter relation is found for all the precursor formula. Conventional mass matching is performed.';
-    idx=idrec{1};
-    massdiff=mass(idx)-precursor;
-    [sorteddiff,sidx]=sort(massdiff);
     comp_time=toc;
+    note='No mother-daughter relation is found for all the precursor formula. Conventional mass matching is performed.';
+    idx=idrec{1}; % indices of the precursor candidate
+    [sorteddiff,sidx]=sort(abs(difmtx{1})); % sort the mass differences of the precursor candidates
+    if min(length(idx),opt.MaxRankNumber) > 1
+        Top2_Score_Diff=(sorteddiff(2)-sorteddiff(1))/delta;
+    else
+        Top2_Score_Diff=-1;
+    end
     for i=1:min(length(idx),opt.MaxRankNumber)
         msg_count=msg_count+1;
+        % 'No','Ionization_Mode','Precursor_Mass','Formula','Formula_Mass','Mass_Difference',...
+        % 'Rank','Original_Candidates','Peak_Num','Frag_Num','Frag_w_Formula','Score','Difference_Sum','Top2_Sore_Diff','Peak_Dist_SD','Comp_Time','Note';
+        tempscore=max(0,(delta-sorteddiff(i))/delta);
         msg(msg_count,:)={spectidx,mode,precursor,formula{idx(sidx(i))},mass(idx(sidx(i))),sorteddiff(i),...
-            i,length(idx),nop_org,nop,nof,-1,-1,-1,Peak_Dist_SD,comp_time,note};
+            i,length(idx),nop_org,nop,nof,tempscore,sorteddiff(i),Top2_Score_Diff,Peak_Dist_SD,comp_time,note};
     end
     msg=msg(1:msg_count,:);
     return
@@ -229,10 +248,18 @@ if all(score==0) % No mother-daughter relation is found for all the precursor fo
     note='No mother-daughter relation is found for all the precursor formula. Conventional mass matching is performed.';
     idx=idrec{1};
     [sorteddiff,sidx]=sort(difmtx{1}); %mass differences of the precursor formulas
+    if min(length(idx),opt.MaxRankNumber) > 1
+        Top2_Score_Diff=(sorteddiff(2)-sorteddiff(1))/delta;
+    else
+        Top2_Score_Diff=-1;
+    end
     for i=1:min(length(idx),opt.MaxRankNumber)
         msg_count=msg_count+1;
+        % 'No','Ionization_Mode','Precursor_Mass','Formula','Formula_Mass','Mass_Difference',...
+        % 'Rank','Original_Candidates','Peak_Num','Frag_Num','Frag_w_Formula','Score','Difference_Sum','Top2_Sore_Diff','Peak_Dist_SD','Comp_Time','Note';
+        tempscore=max(0,(delta-sorteddiff(i))/delta);
         msg(msg_count,:)={spectidx,mode,precursor,formula{idx(sidx(i))},mass(idx(sidx(i))),sorteddiff(i),...
-            i,length(idx),nop_org,nop,nof,-1,-1,-1,Peak_Dist_SD,comp_time,note};
+            i,length(idx),nop_org,nop,nof,tempscore,sorteddiff(i),Top2_Score_Diff,Peak_Dist_SD,comp_time,note};
     end
 else
     idx=idrec{1};
@@ -249,19 +276,19 @@ else
         if tienum==1 % no candidate has the same score
             msg_count=msg_count+1;
             msg(msg_count,:)={spectidx,mode,precursor,formula{idx(sidx(i))},mass(idx(sidx(i))),difmtx{1}(sidx(i)),...
-                rank,length(idx),nop_org,nop,nor(sidx(i)),uscore(i),-1,Top2_Score_Diff,Peak_Dist_SD,comp_time,note};
+                rank,length(idx),nop_org,nop,nor(sidx(i)),uscore(i)+1,-1,Top2_Score_Diff,Peak_Dist_SD,comp_time,note};
             rank=rank+1;
             if rank > opt.MaxRankNumber
                 break;
             end
-        else
+        else % There are ties in the candidates
             [sdif,didx]=sort(difsum(uid==i)); % sort the mass difference
             tieidx=find(uid==i);
             for k=1:length(didx)
                 useid=sidx(tieidx(didx(k)));
                 msg_count=msg_count+1;
                 msg(msg_count,:)={spectidx,mode,precursor,formula{idx(useid)},mass(idx(useid)),difmtx{1}(useid),...
-                    rank,length(idx),nop_org,nop,nor(useid),score(useid),...
+                    rank,length(idx),nop_org,nop,nor(useid),score(useid)+1,...
                     sdif(k),Top2_Score_Diff,Peak_Dist_SD,comp_time,note};
                 rank=rank+1;
                 if rank > opt.MaxRankNumber

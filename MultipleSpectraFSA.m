@@ -19,8 +19,8 @@ fclose all;
 % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Parameter settings
 opt.TINY=0.5; % ratio threshold for "tiny" peaks
-opt.PPM=0.001;% mass match tolerance
-opt.MaxRankNumber=1;
+opt.MatchTolerance=0.001;% mass match tolerance (can be set in the unit of either PPM or Da)
+opt.MaxRankNumber=3;
 % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Please provide your peak list and output filename
 % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
