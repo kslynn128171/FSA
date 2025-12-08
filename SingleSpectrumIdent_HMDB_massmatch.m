@@ -1,4 +1,4 @@
-function msg=SingleSpectrumIdent_HMDB_massmatch(spectidx, elemnum, formula, mass, spectrum, opt)
+function msg=SingleSpectrumIdent_HMDB_massmatch_new(spectidx, elemnum, formula, mass, spectrum, opt)
 % initial parameters
 note='successful ranked';
 Top2_Score_Diff=-1;
@@ -6,16 +6,22 @@ comp_time=-1;
 is_reduced=false;
 instrument_type=strrep(spectrum.instrument_type,',',';');
 % split m/z and abundance values in a spectral file
-temp = strsplit(spectrum.ms2_peak,{'*',';'});
-num = length(temp);
-if rem(num,4)==0
-    terms = reshape(temp,4,num/4);
-else
-    terms = reshape(temp(1:(floor(num/4)*4)),4,floor(num/4));
-end
-mz=str2double(terms(3,:)); % m/z value
-ab=str2double(terms(2,:)); % abundance
-clear terms
+tempcell = textscan(spectrum.ms2_peak,'%f','Delimiter',{'*',';'});
+%temp=tempcell{1};
+%temp = strsplit(spectrum.ms2_peak,{'*',';'});
+% num = length(temp);
+% if rem(num,4)==0
+%     terms = reshape(temp,4,num/4);
+% else
+%     terms = reshape(temp(1:(floor(num/4)*4)),4,floor(num/4));
+% end
+%mz=double(terms(3,:)); % m/z value
+%ab=double(terms(2,:)); % abundance
+% mz=terms(3,:); % m/z value
+% ab=terms(2,:); % abundance
+mz=tempcell{1}(3:4:end)'; % m/z value
+ab=tempcell{1}(2:4:end)'; % abundance
+%clear terms
 nop_org=length(mz); % number of peaks in the spectrum
 % adjust mode for the m/z values
 mode=lower(spectrum.ionization_mode); % the mode of the spectrum
@@ -28,16 +34,20 @@ end
 % find the mass of fragments in a spectrum
 %-------------------------------------------
 if ~isnumeric(spectrum.monisotopic_molecular_weight)
-    precursor=str2double(spectrum.monisotopic_molecular_weight); % precursor mass
+    precursor=double(spectrum.monisotopic_molecular_weight); % precursor mass
 else
     precursor=spectrum.monisotopic_molecular_weight; % precursor mass
 end
-mzdiff=abs(mz-precursor);
-[mindiff,minidx]=min(mzdiff);
+if isempty(spectrum.ms2_peak) % No ms/ms peak is found 
+    note='No ms/ms peak is found.';
+    msg={spectidx,spectrum.name,instrument_type,mode,precursor,spectrum.chemical_formula,...
+        -1,-1,-1,0,0,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,note};
+    return;
+end
 % compute the SD of inter-peak distances
 mzorg=[precursor mz(mz<precursor)];
 mzorg=sort(mzorg,'desc');
-if length(mzorg) == 1
+if isscalar(mzorg)
     Peak_Dist_SD=0;
 else
     Peak_Dist_SD=std(mzorg(1:end-1)-mzorg(2:end));
@@ -54,7 +64,14 @@ else
         mz=[precursor mz(ridx)]; % m/z values after irrelavant peak removal
         ab=[max(ab(ridx)) ab(ridx)]; % abundance values after irrelevant peak removal
     else % no fragment in the spectrum
-        if mindiff < opt.MatchTolerance
+        if opt.MatchTolerance < 1 % use Da as unit of the tolerance
+            delta=opt.MatchTolerance;
+        else % relax the tolerance for small mass
+            delta=opt.MatchTolerance*mz(1)/1e6;
+        end
+        mzdiff=abs(mz-precursor);
+        [mindiff,minidx]=min(mzdiff);
+        if mindiff < delta
             mz=mz(minidx);
         else
             mz=precursor;
@@ -69,7 +86,7 @@ sab=sort(ab,'desc');
 if opt.MaxPeak > 1
     rid=(ab>=sab(min(length(ab),opt.MaxPeak))); % a fixed peak number
 else
-    rid=(ab>=sab(min(length(ab),floor(opt.MaxPeak*precursor)))); % a ratio of the precurcor mass
+    rid=(ab>=sab(min(length(ab),floor(opt.MaxRatioPeak*precursor)))); % a ratio of the precurcor mass
 end
 ab=ab(rid);mz=mz(rid);
 % remove tiny peaks
@@ -94,8 +111,9 @@ for j=1:nop
     end
     upbd=mz(j)+delta;
     lobd=mz(j)-delta;
-    tf=(mass <= upbd) & (mass >= lobd);
-    idx=find(tf);
+    idx = (find(mass >= lobd,1,'first'):find(mass >= upbd,1,'first')-1)'; % find indices of mass within the bounds
+    %idx = (find(mass >= lobd,1,'first'):find(mass <= upbd,1,'last'))'; % find indices of mass within the bounds
+    %idx = find(mass >= lobd & mass <= upbd); % find indices of mass within the bounds
     idrec{j}=idx; % record fomula indices for each peak
     difmtx{j}=mass(idx)-mz(j); % record the mass differences of the candidates
     if j == 1 % check for the precursor
@@ -118,7 +136,7 @@ for j=1:nop
                 -1,-1,length(idx),nop_org,nop,-1,score,-1,-1,-1,-1,-1,Top2_Score_Diff,Peak_Dist_SD,comp_time,note};
             return;
         end
-        if length(idx)==1
+        if isscalar(idx)
             note='Single candidate matches with the answer.';
             msg={spectidx,spectrum.name,instrument_type,mode,precursor,spectrum.chemical_formula,...
                 1,1,1,nop_org,nop,-1,score,-1,-1,-1,-1,-1,Top2_Score_Diff,Peak_Dist_SD,comp_time,note};
@@ -159,8 +177,7 @@ for j=1:noc % for each precursor formula candidate
         idx=idrec{k}; % indices of formulas for the kth fragment
         matf=elemnum(idx,:); % fragment matrix
         matp=repmat(vecp,length(idx),1); % parent matrix
-        tf=matp >= matf; % logical matrix indicating whether a subset is found
-        uid=all(tf,2); % logical value showing which formulas that possess MDR with precursor
+        uid=all(matp >= matf,2); % logical value showing which formulas that possess MDR with precursor
         cnum(k)=sum(uid); % record number of satisfied candidates
         uidrec{k}=(idx(uid))'; % record the indices of the satisfied candidates
         if (cnum(k)==1) 
@@ -174,19 +191,20 @@ for j=1:noc % for each precursor formula candidate
     uidrec=uidrec(2:end); % remove the first record (unused) in the formula indices
     cnum=cnum(2:end); % remove the first record (unused) in the candidate number
     massuid=massid(2:end,j); % remove the first record (unused) in the mass indices
-    uidrec=cell2mat(uidrec(cnum==1)); % keep only characteristic fragments
+    uidrec=vertcat(uidrec{cnum==1}); % keep only characteristic fragments
     massuid=massuid(cnum==1);
-    nor_cur=length(uidrec); % number of characteristic fragments
+    nor_cur=numel(uidrec); % number of characteristic fragments
     % compute the match score of each combination
     [k,l]=ind2sub([nor_cur,nor_cur],nonzeros(triu(reshape(1:(nor_cur*nor_cur), [nor_cur,nor_cur]),1)));
-    tempscore=sum(all(elemnum(uidrec(k),:) >= elemnum(uidrec(l),:),2)); % number of MDRs among the fragments
-    score(j)=(tempscore+nor_cur)/totalscore; % add the MDRs with the precursor and normalize the score
-    nor(j)=nor_cur;
+    %[k,l] = find(triu(ones(nor_cur), 1)); % get indices for upper triangular matrix
+    tempscore = sum(all(elemnum(uidrec(k),:) >= elemnum(uidrec(l),:), 2)); % number of MDRs among the fragments
+    score(j) = (tempscore + nor_cur) / totalscore; % add the MDRs with the precursor and normalize the score
+    nor(j) = nor_cur;
     % compute the mass differences of this combination
-    tempmtx=difmtx(2:end); % keep the mass differences of the fragments
-    tempmtx=tempmtx(cnum==1); % keep the mass differences of the characteristic fragments
-    difvec=cellfun(@(x,y)x(y),tempmtx,num2cell(massuid)); % extract the mass differences of the characteristic fragments
-    difsum(j)=(sum(abs(difvec))+abs(difmtx{1}(j)))/(length(difvec)+1); % add the mass difference of the precursor
+    tempmtx = difmtx(2:end); % keep the mass differences of the fragments
+    tempmtx = tempmtx(cnum == 1); % keep the mass differences of the characteristic fragments
+    difvec = cellfun(@(x,y)x(y), tempmtx, num2cell(massuid)); % extract the mass differences of the characteristic fragments
+    difsum(j) = (sum(abs(difvec)) + abs(difmtx{1}(j))) / (numel(difvec) + 1); % add the mass difference of the precursor
 end
 comp_time=toc; % total computation time
 if all(score==0) % No mother-daughter relation is found for all the precursor formula

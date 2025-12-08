@@ -1,4 +1,4 @@
-function msg=SingleSpectrumIdent_NatProd_massmatch(spectidx, elemnum, formula, mass, spectrum, opt)
+function msg=SingleSpectrumIdent_NatProd_massmatch_new(spectidx, elemnum, formula, mass, spectrum, opt)
 % initial parameters
 note='successful ranked';
 Top2_Score_Diff=-1;
@@ -6,16 +6,19 @@ comp_time=-1;
 is_reduced=false;
 instrument_type=strrep(spectrum.instrument_type,',',';');
 % split m/z and abundance values in a spectral file
-temp = strsplit(spectrum.ms2_peak,{'*',';'});
-num = length(temp);
-if rem(num,4)==0
-    terms = reshape(temp,4,num/4);
-else
-    terms = reshape(temp(1:(floor(num/4)*4)),4,floor(num/4));
-end
-mz=str2double(terms(3,:)); % m/z value
-ab=str2double(terms(2,:)); % abundance
-clear terms
+tempcell = textscan(spectrum.ms2_peak,'%f','Delimiter',{'*',';'});
+% temp = strsplit(spectrum.ms2_peak,{'*',';'});
+% num = length(temp);
+% if rem(num,4)==0
+%     terms = reshape(temp,4,num/4);
+% else
+%     terms = reshape(temp(1:(floor(num/4)*4)),4,floor(num/4));
+% end
+% mz=str2double(terms(3,:)); % m/z value
+% ab=str2double(terms(2,:)); % abundance
+% clear terms
+mz=tempcell{1}(3:4:end)'; % m/z value
+ab=tempcell{1}(2:4:end)'; % abundance
 nop_org=length(mz); % number of peaks in the spectrum
 % adjust mode for the m/z values
 mode=lower(spectrum.ionization_mode); % the mode of the spectrum
@@ -34,10 +37,16 @@ else
 end
 mzdiff=abs(mz-precursor);
 [mindiff,minidx]=min(mzdiff);
+if isempty(spectrum.ms2_peak) % No ms/ms peak is found 
+    note='No ms/ms peak is found.';
+    msg={spectidx,spectrum.name,instrument_type,mode,precursor,spectrum.chemical_formula,...
+        -1,-1,-1,0,0,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,note};
+    return;
+end
 % compute the SD of inter-peak distances
 mzorg=[precursor mz(mz<precursor)];
 mzorg=sort(mzorg,'desc');
-if length(mzorg) == 1
+if isscalar(mzorg)
     Peak_Dist_SD=0;
 else
     Peak_Dist_SD=std(mzorg(1:end-1)-mzorg(2:end));
@@ -96,8 +105,10 @@ for j=1:nop
     end
     upbd=mz(j)+delta;
     lobd=mz(j)-delta;
-    tf=(mass <= upbd) & (mass >= lobd);
-    idx=find(tf);
+    % tf=(mass <= upbd) & (mass >= lobd);
+    % idx=find(tf);
+    %idx = (find(mass >= lobd,1,'first'):find(mass <= upbd,1,'last'))'; % find indices of mass within the bounds
+    idx = (find(mass >= lobd,1,'first'):find(mass >= upbd,1,'first')-1)'; % find indices of mass within the bounds
     idrec{j}=idx; % record fomula indices for each peak
     difmtx{j}=mass(idx)-mz(j); % record the mass differences of the candidates
     if j == 1 % check for the precursor
@@ -120,7 +131,7 @@ for j=1:nop
                 -1,-1,length(idx),nop_org,nop,-1,score,-1,-1,-1,-1,-1,Top2_Score_Diff,Peak_Dist_SD,comp_time,note};
             return;
         end
-        if length(idx)==1
+        if isscalar(idx)
             note='Single candidate matches with the answer.';
             msg={spectidx,spectrum.name,instrument_type,mode,precursor,spectrum.chemical_formula,...
                 1,1,1,nop_org,nop,-1,score,-1,-1,-1,-1,-1,Top2_Score_Diff,Peak_Dist_SD,comp_time,note};
@@ -177,7 +188,8 @@ for j=1:noc % for each precursor formula candidate
     uidrec=uidrec(2:end); % remove the first record (unused) in the formula indices
     cnum=cnum(2:end); % remove the first record (unused) in the candidate number
     massuid=massid(2:end,j); % remove the first record (unused) in the mass indices
-    uidrec=cell2mat(uidrec(cnum==1)); % keep only characteristic fragments
+    %uidrec=cell2mat(uidrec(cnum==1)); % keep only characteristic fragments
+    uidrec=vertcat(uidrec{cnum==1}); % keep only characteristic fragments
     massuid=massuid(cnum==1);
     nor_cur=length(uidrec); % number of characteristic fragments
     % compute the match score of each combination
